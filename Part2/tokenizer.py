@@ -5,12 +5,14 @@ import re
 
 File = collections.namedtuple('File', ['filepath', 'contents', 'wordlist', 'linklist'])
 
+
 class Tokenizer:
     """
     This Tokenizer class will take care of taking in a text and parsing it to as the problem description
     for Task 1 says, "ignore html tags, non-textual contents such as image." It shall extract words and urls
     It will also remove all stop-words.
     """
+
     def __init__(self):
         # Initiate the html parser
         self._html2text = html2text.HTML2Text()
@@ -20,7 +22,8 @@ class Tokenizer:
 
         # Initiate the word/link extractors, uses regular expression
         self._word_extractor = re.compile(r'[^\W_0123456789]+')
-        self._link_extractor = re.compile(r'[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)')
+        self._link_extractor = re.compile(
+            r'[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)')
 
         # List of stopwords, storing as dictionary speeds up search to O(1)
         stop_word_path = 'stopwords.txt'

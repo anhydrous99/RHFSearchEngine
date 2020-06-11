@@ -1,6 +1,7 @@
 import collections
 from zipfile import ZipFile
 from tok import Tokenizer
+import PySimpleGUI as GUI_Interface
 
 
 def main():
@@ -23,7 +24,13 @@ def main():
     df = collections.Counter()
     for file in file_list:
         df.update(file.wordlist)
-    print(df)
+
+    # Create GUI
+    layout = [[GUI_Interface.Text('Enter the query'), GUI_Interface.InputText()],
+              [GUI_Interface.Button('Ok')]]
+    window = GUI_Interface.Window('Search Webpages', layout, location=(40, 40), size=(400, 100))
+    event, values = window.read()
+    print(values[0])
 
 
 if __name__ == "__main__":

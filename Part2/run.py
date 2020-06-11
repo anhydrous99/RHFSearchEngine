@@ -31,6 +31,7 @@ def main():
     # Using idf = log_2 (N / (df + 1)) + 1
     idf = {k:np.log2(N / (v + 1)) + 1 for k, v in dict(df).items()}
 
+    # Create the inverted index
     inverted_index = {}
     for file in file_list:
         for idx, word in enumerate(file.wordlist):

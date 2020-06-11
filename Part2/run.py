@@ -1,12 +1,16 @@
+import numpy as np
 import collections
 from zipfile import ZipFile
 from tok import Tokenizer
 import PySimpleGUI as GUI_Interface
 
+InvEntry = collections.namedtuple('InvEntry', ['df', 'docs'])
+
 
 def main():
     with ZipFile('Jan.zip') as zipfile:
         file_path_list = zipfile.namelist()
+        N = len(file_path_list)
         tokenizer = Tokenizer()
 
         # Create a list of File types that store all information pertaining to an html file.
@@ -19,11 +23,26 @@ def main():
                 df = tokenizer.tokenize(path, contents)
                 file_list.append(df)
 
-    # Calculate the document frequency
+    # Calculate the document frequency and idf
     # The counter container is great!! :D
     df = collections.Counter()
     for file in file_list:
         df.update(file.wordlist)
+    # Using idf = log_2 (N / (df + 1)) + 1
+    idf = {k:np.log2(N / (v + 1)) + 1 for k, v in dict(df).items()}
+
+    inverted_index = {}
+    for file in file_list:
+        for idx, word in enumerate(file.wordlist):
+            if word not in inverted_index:
+                inverted_index[word] = InvEntry(df[word], {})
+            if file.filename not in inverted_index[word].docs:
+                inverted_index[word].docs[file.filename] = {'freq': 1, 'tf-idf': idf[word], 'postings': [idx]}
+            else:
+                inverted_index[word].docs[file.filename]['freq'] += 1
+                inverted_index[word].docs[file.filename]['tf-idf'] += idf[word]
+                inverted_index[word].docs[file.filename]['postings'].append(idx)
+
 
     # Create GUI
     layout = [[GUI_Interface.Text('Enter the query'), GUI_Interface.InputText()],

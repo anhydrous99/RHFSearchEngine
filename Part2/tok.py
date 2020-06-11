@@ -1,9 +1,10 @@
 import collections
 import typing
 import html2text
+import ntpath
 import re
 
-File = collections.namedtuple('File', ['filepath', 'contents', 'wordlist', 'linklist'])
+File = collections.namedtuple('File', ['filename', 'filepath', 'contents', 'wordlist', 'linklist'])
 
 
 class Tokenizer:
@@ -51,4 +52,4 @@ class Tokenizer:
     def tokenize(self, file_path: str, contents: str) -> File:
         wordlist, linklist = self._parse_raw(contents)
         wordlist = self._filter_stopwords(wordlist)
-        return File(file_path, contents, wordlist, linklist)
+        return File(ntpath.basename(file_path), file_path, contents, wordlist, linklist)

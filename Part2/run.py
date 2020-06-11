@@ -10,7 +10,7 @@ InvEntry = collections.namedtuple('InvEntry', ['df', 'docs'])
 def main():
     with ZipFile('Jan.zip') as zipfile:
         file_path_list = zipfile.namelist()
-        N = len(file_path_list)
+        n = len(file_path_list)
         tokenizer = Tokenizer()
 
         # Create a list of File types that store all information pertaining to an html file.
@@ -29,7 +29,7 @@ def main():
     for file in file_list:
         df.update(file.wordlist)
     # Using idf = log_2 (N / (df + 1)) + 1
-    idf = {k:np.log2(N / (v + 1)) + 1 for k, v in dict(df).items()}
+    idf = {k: np.log2(n / (v + 1)) + 1 for k, v in dict(df).items()}
 
     # Create the inverted index
     inverted_index = {}
@@ -43,7 +43,6 @@ def main():
                 inverted_index[word].docs[file.filename]['freq'] += 1
                 inverted_index[word].docs[file.filename]['tf-idf'] += idf[word]
                 inverted_index[word].docs[file.filename]['postings'].append(idx)
-
 
     # Create GUI
     layout = [[GUI_Interface.Text('Enter the query'), GUI_Interface.InputText()],

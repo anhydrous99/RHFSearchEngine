@@ -37,7 +37,7 @@ class Tokenizer:
     def _parse_raw(self, file_contents):
         # Parse text into a more digestible format
         raw_txt = self._html2text.handle(file_contents)
-        # Extract all words
+        # Extract all words, I am retaining repeat words
         wordlist = [w.lower() for w in self._word_extractor.findall(raw_txt)]
         # Extract all links
         linklist = self._link_extractor.findall(file_contents)

@@ -1,3 +1,5 @@
+import numpy as np
+import collections
 
 
 def combine(set1, set2, t):
@@ -23,3 +25,30 @@ def boolean_model(query, inverted_index):
     set2 = boolean_model(query[2:], inverted_index)
     set1 = check(inverted_index.get(query[0]))
     return combine(set1, set2, query[1])
+
+
+def vector_model(query, inverted_matrix):
+    query = collections.Counter(query)
+    searches = [{doc: inverted_matrix[q].docs[doc] for doc in inverted_matrix[q].docs} if inverted_matrix.get(
+        q) is not None else None for q in query]
+
+    # Create tfidf matrix
+    files = set()
+    for search in searches:
+        if search is not None:
+            for doc in search:
+                files.add(doc)
+    files = list(files)
+    tfidf = np.zeros((len(files), len(query)))
+    for y_idx, search in enumerate(searches):
+        if search is not None:
+            for doc in search:
+                x_idx = files.index(doc)
+                tfidf[x_idx, y_idx] = search[doc]['tf-idf']
+
+    # Create query vector
+    q = np.array(list(query.values()))
+    cossim = np.dot(tfidf, q) / (np.linalg.norm(tfidf) * np.linalg.norm(q))
+    files_dict = {f: cossim[files.index(f)] for f in files}
+    files.sort(key=lambda k: files_dict[k], reverse=True)
+    return files

@@ -2,7 +2,7 @@ import numpy as np
 import collections
 from zipfile import ZipFile
 from tok import Tokenizer
-from models import boolean_model
+from models import boolean_model, vector_model
 import PySimpleGUI as GUI_Interface
 
 InvEntry = collections.namedtuple('InvEntry', ['df', 'docs'])
@@ -67,7 +67,11 @@ def main():
                 out_str += result + '\n'
             layout[2][0].Update(value=out_str)
         else:  # Vector space model
-            pass
+            results = vector_model(query, inverted_index)
+            out_str = ''
+            for result in results:
+                out_str += result + '\n'
+            layout[2][0].Update(value=out_str)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import numpy as np
 import collections
 from zipfile import ZipFile
 from tok import Tokenizer
+from models import boolean_model
 import PySimpleGUI as GUI_Interface
 
 InvEntry = collections.namedtuple('InvEntry', ['df', 'docs'])
@@ -46,10 +47,27 @@ def main():
 
     # Create GUI
     layout = [[GUI_Interface.Text('Enter the query'), GUI_Interface.InputText()],
-              [GUI_Interface.Button('Ok')]]
-    window = GUI_Interface.Window('Search Webpages', layout, location=(40, 40), size=(400, 100))
-    event, values = window.read()
-    print(values[0])
+              [GUI_Interface.Button('Ok'), GUI_Interface.Button('Cancel')],
+              [GUI_Interface.Multiline(disabled=True, size=(None, 200))]]
+    window = GUI_Interface.Window('Search Webpages', layout, location=(40, 40), size=(350, 200))
+
+    # Event loop
+    while True:
+        event, values = window.read()
+        if event == GUI_Interface.WIN_CLOSED or event == 'Cancel':
+            break
+        query = values[0].split(' ')
+        # Boolean model
+        if 'and' in query or 'or' in query or 'but' in query:
+            if len(query) < 3:
+                print('Error: you need at least to words for boolean model.')
+            results = boolean_model(query, inverted_index)
+            out_str = ''
+            for result in results:
+                out_str += result + '\n'
+            layout[2][0].Update(value=out_str)
+        else:  # Vector space model
+            pass
 
 
 if __name__ == "__main__":

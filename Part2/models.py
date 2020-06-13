@@ -102,20 +102,20 @@ def phrasal_sub_search(t1: str, t2: str, docs: Set[str], inverted_index: Dict) -
     Returns:
         A sub-set, from the docs set, of documents where the terms are neighbors.
     """
-    output = set()
+    output_set = set()
     for doc in docs:
-        should_break = False
+        stop = False
         for p1 in inverted_index[t1].docs[doc]['postings']:
-            if should_break:
+            if stop:
                 break
             for p2 in inverted_index[t2].docs[doc]['postings']:
                 if p1 > p2:
                     continue
                 if abs(p1 - p2) == 1:
-                    should_break = True
-                    output.add(doc)
+                    stop = True
+                    output_set.add(doc)
                     break
-    return output
+    return output_set
 
 
 def phrasal_search(query: List[str], inverted_index: Dict) -> List[str]:

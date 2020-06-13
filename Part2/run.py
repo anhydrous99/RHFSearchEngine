@@ -5,8 +5,8 @@ Authors:
     Ulvi Bajarani (ID: 20539914)
 
 Usage:
-    The files tok.py, models.py, and run.py must be in the same directory as Jan.zip. This project is dependent on 3
-    libraries: html2text, numpy, and PySimpleGUI. To install::
+    The files stopwords.txt, tok.py, models.py, and run.py must be in the same directory as Jan.zip. This project is
+    dependent on 3 libraries: html2text, numpy, and PySimpleGUI. To install::
 
         $ pip install html2text numpy PySimpleGUI
 

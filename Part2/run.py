@@ -64,23 +64,26 @@ def main():
                 if len(query) < 3:
                     print('Error: you need at least to words for boolean model.')
                 results = boolean_model(query, inverted_index)
-                out_str = ''
-                for result in results:
-                    out_str += result + '\n'
-                layout[2][0].Update(value=out_str)
+                update(results, layout[2][0])
             else:  # Vector space model
                 # Filter query for stop words
                 query = tokenizer.filter_stopwords(query)  # No need for stop-words in the vector model
                 results = vector_model(query, inverted_index)
-                out_str = ''
-                for result in results:
-                    out_str += result + '\n'
-                layout[2][0].Update(value=out_str)
+                update(results, layout[2][0])
         else:
             # Filter query for stop words
             query = tokenizer.filter_stopwords(query)  # No need for stop-words in the vector model
             query = [q.strip('"') for q in query]  # Strip " from strings
-            phrasal_search(query, inverted_index)
+            results = phrasal_search(query, inverted_index)
+            update(results, layout[2][0])
+
+
+def update(results, interface):
+    out_str = ''
+    for result in results:
+        out_str += result + '\n'
+    out_str += f'{len(results)} results'
+    interface.Update(value=out_str)
 
 
 if __name__ == "__main__":

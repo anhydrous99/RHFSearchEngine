@@ -2,7 +2,7 @@ import numpy as np
 import collections
 from zipfile import ZipFile
 from tok import Tokenizer
-from models import boolean_model, vector_model
+from models import boolean_model, vector_model, phrasal_search
 import PySimpleGUI as GUI_Interface
 
 InvEntry = collections.namedtuple('InvEntry', ['df', 'docs'])
@@ -56,22 +56,27 @@ def main():
         event, values = window.read()
         if event == GUI_Interface.WIN_CLOSED or event == 'Cancel':
             break
-        query = values[0].split(' ')
-        # Boolean model
-        if 'and' in query or 'or' in query or 'but' in query:
-            if len(query) < 3:
-                print('Error: you need at least to words for boolean model.')
-            results = boolean_model(query, inverted_index)
-            out_str = ''
-            for result in results:
-                out_str += result + '\n'
-            layout[2][0].Update(value=out_str)
-        else:  # Vector space model
-            results = vector_model(query, inverted_index)
-            out_str = ''
-            for result in results:
-                out_str += result + '\n'
-            layout[2][0].Update(value=out_str)
+        query = values[0].split(' ')  # Split based on spaces
+        query = [q.lower() for q in query]  # Convert to lower case
+        if query[0][0] != '"' and query[-1][-1] != '"':
+            # Boolean model
+            if 'and' in query or 'or' in query or 'but' in query:
+                if len(query) < 3:
+                    print('Error: you need at least to words for boolean model.')
+                results = boolean_model(query, inverted_index)
+                out_str = ''
+                for result in results:
+                    out_str += result + '\n'
+                layout[2][0].Update(value=out_str)
+            else:  # Vector space model
+                results = vector_model(query, inverted_index)
+                out_str = ''
+                for result in results:
+                    out_str += result + '\n'
+                layout[2][0].Update(value=out_str)
+        else:
+            query = [q.strip('"') for q in query]  # Strip " from strings
+            phrasal_search(query, inverted_index)
 
 
 if __name__ == "__main__":

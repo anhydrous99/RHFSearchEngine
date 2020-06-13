@@ -50,6 +50,17 @@ class Tokenizer:
         return [w for w in word_list if w not in self.stop_words]
 
     def tokenize(self, file_path: str, contents: str) -> File:
+        """
+        This function parses an html file to a word list a list of links. It is organized into a named tuple.
+
+        Args:
+            file_path: A string with the file path, for the html file
+            contents: The contents of the html file
+
+        Returns:
+            A file named tuple, with the file name, file path, the contents of the html file, a list of words
+            extracted from the file, and a list of links extracted from the file.
+        """
         wordlist, linklist = self._parse_raw(contents)
         wordlist = self._filter_stopwords(wordlist)
         return File(ntpath.basename(file_path), file_path, contents, wordlist, linklist)

@@ -92,4 +92,7 @@ def phrasal_search(query: List[str], inverted_matrix: Dict):
     and_query = copy.deepcopy(query)
     for i in reversed(range(1, len(and_query))):
         and_query.insert(i, 'and')
-    d = boolean_model(query, inverted_matrix)
+    docs = boolean_model(query, inverted_matrix)
+
+    for d in docs:
+        for

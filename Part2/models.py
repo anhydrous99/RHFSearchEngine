@@ -88,11 +88,63 @@ def vector_model(query: List[str], inverted_matrix: Dict) -> List:
     return files
 
 
-def phrasal_search(query: List[str], inverted_matrix: Dict):
-    and_query = copy.deepcopy(query)
-    for i in reversed(range(1, len(and_query))):
-        and_query.insert(i, 'and')
-    docs = boolean_model(query, inverted_matrix)
+def phrasal_sub_search(t1: str, t2: str, docs: Set[str], inverted_index: Dict) -> Set[str]:
+    """
+    A sub-search utility function for the prasal search, it uses phrasal search for only two terms,
+    This is used multiple times in the full search.
 
-    for d in docs:
-        for
+    Args:
+        t1: The first term to phrasal search for
+        t2: The second term to phrasal search for
+        docs: A Pre-selected set of documents where both terms occur
+        inverted_index: The inverted index to search through
+
+    Returns:
+        A sub-set, from the docs set, of documents where the terms are neighbors.
+    """
+    output = set()
+    for doc in docs:
+        should_break = False
+        for p1 in inverted_index[t1].docs[doc]['postings']:
+            if should_break:
+                break
+            for p2 in inverted_index[t2].docs[doc]['postings']:
+                if p1 > p2:
+                    continue
+                if abs(p1 - p2) == 1:
+                    should_break = True
+                    output.add(doc)
+                    break
+    return output
+
+
+def phrasal_search(query: List[str], inverted_index: Dict) -> List[str]:
+    """
+    Uses the phrasal search algorithm to search for, not only terms, but phrases. Searches through an inverted index.
+
+    Args:
+        query: The query terms.
+        inverted_index: The inverted index to search through
+
+    Returns:
+        A list of strings with the names of the files that where found
+    """
+    docs = None
+    if len(query) != 1:
+        and_query = copy.deepcopy(query)
+        for i in reversed(range(1, len(and_query))):
+            and_query.insert(i, 'and')
+        docs = boolean_model(and_query, inverted_index)
+    else:
+        return vector_model(query, inverted_index)
+
+    R = collections.Counter()
+    for idx in range(1, len(query)):
+        R.update(phrasal_sub_search(query[idx - 1], query[idx], docs, inverted_index))
+
+    # Filter dicts
+    output = []
+    for k in R.keys():
+        if R[k] == len(query) - 1:
+            output.append(k)
+    return output

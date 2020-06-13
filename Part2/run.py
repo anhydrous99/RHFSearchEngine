@@ -1,3 +1,51 @@
+""" CSCI 6370.01 Information Retrieval & Web Search - Project Part 2
+
+Authors:
+    Armando Herrera (ID: 20217690) Team Lead
+    Ulvi Bajarani (ID: 20539914)
+
+Usage:
+    The files tok.py, models.py, and run.py must be in the same directory as Jan.zip. This project is dependent on 3
+    libraries: html2text, numpy, and PySimpleGUI. To install::
+
+        $ pip install html2text numpy PySimpleGUI
+
+    This project was built using python version 3.8 so any other python version is considered to be untested, it might
+    work but it is not guaranteed unless you are using version 3.8. The GUI has 4 elements, the first, a text entry
+    where queries are made, an ok button to run the query, a cancel button to exit the program, and a multiline text
+    output where the results of the query is shown. You can also run a query by pressing the Enter key or you can also
+    exit the program by pressing the Escape key. To run:
+
+        $ python run.py
+
+Queries:
+    As per the requirements of this part of the project there are 3 types of queries that are possible:
+    * Boolean Model - This query is activated when the words `and`, `or`, and/or `but` are detected.
+        Example Query:
+            music or cats
+        Output:
+            fab.html
+            hippos.html
+            kitty.html
+            3 results
+    * Vector Space Model - This query is activated when there is a single word query or when there are no `and`,
+        `or`, and/or `but` words detected.
+        Example Query:
+            music hot
+        Output:
+            hippos.html
+            fab.html
+            gravies.html
+            galant.html
+            4 results
+    * Phrasal Search - This query type is activated when quotes, ", are detected around the query.
+        Example Query:
+            "movies and real life"
+        Output:
+            armed.html
+            1 results
+"""
+
 import numpy as np
 import collections
 from zipfile import ZipFile
@@ -49,13 +97,16 @@ def main():
     layout = [[GUI_Interface.Text('Enter the query'), GUI_Interface.InputText()],
               [GUI_Interface.Button('Ok'), GUI_Interface.Button('Cancel')],
               [GUI_Interface.Multiline(disabled=True, size=(None, 200))]]
-    window = GUI_Interface.Window('Search Webpages', layout, location=(40, 40), size=(350, 200))
+    window = GUI_Interface.Window('Search Webpages', layout, location=(40, 40), size=(350, 200),
+                                  return_keyboard_events=True)
 
     # Event loop
     while True:
         event, values = window.read()
-        if event == GUI_Interface.WIN_CLOSED or event == 'Cancel':
+        if event == GUI_Interface.WIN_CLOSED or event == 'Cancel' or event == 'Escape:27':
             break
+        if event != 'Ok' and event != '\r':
+            continue
         query = values[0].split(' ')  # Split based on spaces
         query = [q.lower() for q in query]  # Convert to lower case
         if query[0][0] != '"' and query[-1][-1] != '"':

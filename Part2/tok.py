@@ -1,3 +1,13 @@
+""" CSCI 6370.01 Information Retrieval & Web Search - Project Part 2
+
+Authors:
+    Armando Herrera (ID: 20217690) Team Lead
+    Ulvi Bajarani (ID: 20539914)
+
+File Details:
+    Contains a class for parsing html files.
+"""
+
 import collections
 import typing
 import html2text

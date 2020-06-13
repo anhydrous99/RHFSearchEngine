@@ -69,12 +69,16 @@ def main():
                     out_str += result + '\n'
                 layout[2][0].Update(value=out_str)
             else:  # Vector space model
+                # Filter query for stop words
+                query = tokenizer.filter_stopwords(query)  # No need for stop-words in the vector model
                 results = vector_model(query, inverted_index)
                 out_str = ''
                 for result in results:
                     out_str += result + '\n'
                 layout[2][0].Update(value=out_str)
         else:
+            # Filter query for stop words
+            query = tokenizer.filter_stopwords(query)  # No need for stop-words in the vector model
             query = [q.strip('"') for q in query]  # Strip " from strings
             phrasal_search(query, inverted_index)
 

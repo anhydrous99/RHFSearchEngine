@@ -46,7 +46,7 @@ class Tokenizer:
         linklist = [obj[0] for obj in linklist]
         return wordlist, linklist
 
-    def _filter_stopwords(self, word_list: typing.List[str]):
+    def filter_stopwords(self, word_list: typing.List[str]):
         return [w for w in word_list if w not in self.stop_words]
 
     def tokenize(self, file_path: str, contents: str) -> File:
@@ -62,5 +62,5 @@ class Tokenizer:
             extracted from the file, and a list of links extracted from the file.
         """
         wordlist, linklist = self._parse_raw(contents)
-        wordlist = self._filter_stopwords(wordlist)
+        wordlist = self.filter_stopwords(wordlist)
         return File(ntpath.basename(file_path), file_path, contents, wordlist, linklist)

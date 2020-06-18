@@ -1,3 +1,5 @@
+from models import boolean_model, vector_model, phrasal_search
+from typing import List
 from zipfile import ZipFile
 import collections
 import html2text
@@ -40,6 +42,10 @@ class InvertedIndex:
                 file_list.append(idx_file)
                 indexed_files.add(idx_file_path)
             print(idx_file.linklist)
+            # TODO
+
+    def filter_stopwords(self, word_list: List[str]):
+        return [w for w in word_list if w not in self._stop_words]
 
     def _parse(self, file_contents, file_path):
         # Parse text into a more digestible format
@@ -50,7 +56,7 @@ class InvertedIndex:
         link_list = self._link_extractor.findall(file_contents)
         # Format links into proper list of links
         link_list = [obj[0] for obj in link_list]
-        word_list = [w for w in word_list if w not in self._stop_words]
+        word_list = self.filter_stopwords(word_list)
         return File(ntpath.basename(file_path), file_path, file_contents, word_list, link_list)
 
     def __len__(self):
@@ -61,3 +67,30 @@ class InvertedIndex:
 
     def __getitem__(self, item):
         return self._inverted_index[item]
+
+    def query(self, query):
+        if query[0][0] != '"' and query[-1][-1] != '"':
+            # Boolean model
+            if 'and' in query or 'or' in query or 'but' in query:
+                if len(query) < 3:
+                    print('Error: you need at least to words for boolean model.')
+                results = self.boolean_query(query)
+            else:  # Vector space model
+                # Filter query for stop words
+                query = self.filter_stopwords(query)  # No need for stop-words in the vector model
+                results = self.vector_query(query)
+        else:
+            # Filter query for stop words
+            query = self.filter_stopwords(query)  # No need for stop-words in the vector model
+            query = [q.strip('"') for q in query]  # Strip " from strings
+            results = self.phrasal_query(query)
+        return results
+
+    def boolean_query(self, query):
+        return boolean_model(query, self._inverted_index)
+
+    def vector_query(self, query):
+        return vector_model(query, self._inverted_index)
+
+    def phrasal_query(self, query):
+        return phrasal_search(query, self._inverted_index)

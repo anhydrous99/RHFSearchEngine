@@ -1,12 +1,12 @@
 from models import boolean_model, vector_model, phrasal_search
-from typing import List
 from zipfile import ZipFile
+from pathlib import Path
+from typing import List
 import collections
 import html2text
-import ntpath
 import re
 
-File = collections.namedtuple('File', ['filename', 'filepath', 'contents', 'wordlist', 'linklist'])
+File = collections.namedtuple('File', ['filepath', 'contents', 'wordlist', 'linklist'])
 InvEntry = collections.namedtuple('InvEntry', ['df', 'docs'])
 
 
@@ -34,20 +34,27 @@ class InvertedIndex:
         # Create a file list
         file_list = []
         indexed_files = set()
+        base_path = Path('rhf/')
         with ZipFile('rhf.zip') as zipfile:
-            idx_file_path = 'rhf/index.html'
-            with zipfile.open(idx_file_path) as html_file:
-                contents = html_file.read().decode('utf-8')
-                idx_file = self._parse(contents, idx_file_path)
-                file_list.append(idx_file)
-                indexed_files.add(idx_file_path)
-            print(idx_file.linklist)
-            # TODO
+            idx_file_path = base_path / 'index.html'
+
+            def add(file_path: Path):
+                with zipfile.open(str(file_path.as_posix())) as html_file:
+                    contents = html_file.read().decode('utf-8')
+                    idx_file = self._parse(contents, file_path)
+                    file_list.append(idx_file)
+                    indexed_files.add(file_path)
+                for link in idx_file.linklist:
+                    link = (file_path.parent / link).resolve().relative_to('.')
+                    if (link.suffix == '.html' or link.suffix == '.htm') and link not in indexed_files:
+                        add(link)
+
+            add(idx_file_path)
 
     def filter_stopwords(self, word_list: List[str]):
         return [w for w in word_list if w not in self._stop_words]
 
-    def _parse(self, file_contents, file_path):
+    def _parse(self, file_contents: str, file_path: Path) -> File:
         # Parse text into a more digestible format
         raw_txt = self._html2text.handle(file_contents)
         # Extract all words, I am retaining repeat words
@@ -57,7 +64,7 @@ class InvertedIndex:
         # Format links into proper list of links
         link_list = [obj[0] for obj in link_list]
         word_list = self.filter_stopwords(word_list)
-        return File(ntpath.basename(file_path), file_path, file_contents, word_list, link_list)
+        return File(file_path, file_contents, word_list, link_list)
 
     def __len__(self):
         return len(self._inverted_index)

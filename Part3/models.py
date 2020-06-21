@@ -52,6 +52,8 @@ def boolean_model(query: List[str], inverted_index: Dict) -> Set:
     Returns:
         A set of strings with the names of the files that where found
     """
+    if len(query) == 1 and (query[0] == 'but' or query[0] == 'or' or query[0] == 'and'):
+        return set()
     if len(query) == 3:
         set1 = check(inverted_index.get(query[0]))
         set2 = check(inverted_index.get(query[2]))

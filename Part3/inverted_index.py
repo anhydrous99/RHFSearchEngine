@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List
 import collections
 import html2text
+import numpy as np
 import re
 
 File = collections.namedtuple('File', ['filepath', 'contents', 'wordlist', 'linklist'])
@@ -37,7 +38,6 @@ class InvertedIndex:
         base_path = Path('rhf/')
         with ZipFile('rhf.zip') as zipfile:
             idx_file_path = base_path / 'index.html'
-
             def add(file_path: Path):
                 with zipfile.open(str(file_path.as_posix())) as html_file:
                     contents = html_file.read().decode('utf-8')
@@ -48,8 +48,26 @@ class InvertedIndex:
                     link = (file_path.parent / link).resolve().relative_to('.')
                     if (link.suffix == '.html' or link.suffix == '.htm') and link not in indexed_files:
                         add(link)
-
             add(idx_file_path)
+
+        # Calculate the document frequency and idf
+        # The counter container is great!! :D
+        df = collections.Counter()
+        for file in file_list:
+            df.update(file.wordlist)
+        # Using idf = log_2 (N / (df + 1)) + 1
+        idf = {k: np.log2(len(file_list) / (v + 1)) + 1 for k, v in dict(df).items()}
+
+        for file in file_list:
+            for idx, word in enumerate(file.wordlist):
+                if word not in self._inverted_index:
+                    self._inverted_index[word] = InvEntry(df[word], {})
+                if file.filepath not in self._inverted_index[word].docs:
+                    self._inverted_index[word].docs[file.filepath] = {'freq': 1, 'tf-idf': idf[word], 'postings': [idx]}
+                else:
+                    self._inverted_index[word].docs[file.filepath]['freq'] += 1
+                    self._inverted_index[word].docs[file.filepath]['tf-idf'] += idf[word]
+                    self._inverted_index[word].docs[file.filepath]['postings'].append(idx)
 
     def filter_stopwords(self, word_list: List[str]):
         return [w for w in word_list if w not in self._stop_words]

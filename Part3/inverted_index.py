@@ -1,3 +1,13 @@
+""" CSCI 6370.01 Information Retrieval & Web Search - Project Part 3
+
+Authors:
+    Armando Herrera (ID: 20217690) Team Lead
+    Ulvi Bajarani (ID: 20539914)
+
+File Details:
+    Wraps the model function together with the inverted index to abstract for ease of use and clean code in run.py.
+"""
+
 from models import boolean_model, vector_model, phrasal_search
 from zipfile import ZipFile
 from pathlib import Path
@@ -13,6 +23,10 @@ InvEntry = collections.namedtuple('InvEntry', ['df', 'docs'])
 
 class InvertedIndex:
     def __init__(self):
+        """
+        Initiates all regular expression/html2text engines as well as created a file list and the inverted index.
+        Here we crawl our way through the html files starting from the index.html file at rhf/index.html.
+        """
         self._inverted_index = {}
         # Initiate the html parser
         self._html2text = html2text.HTML2Text()
@@ -70,9 +84,28 @@ class InvertedIndex:
                     self._inverted_index[word].docs[file.filepath]['postings'].append(idx)
 
     def filter_stopwords(self, word_list: List[str]):
+        """
+        Filters stop words from a word list.
+
+        Args:
+            word_list: The word list to filter
+
+        Returns:
+            The filtered word list
+        """
         return [w for w in word_list if w not in self._stop_words]
 
     def _parse(self, file_contents: str, file_path: Path) -> File:
+        """
+        Parses and individual file.
+
+        Args:
+            file_contents: Raw html-text file contents.
+            file_path: The path, in the zip-file.
+
+        Returns:
+            A "File" named tuple with various information
+        """
         # Parse text into a more digestible format
         raw_txt = self._html2text.handle(file_contents)
         # Extract all words, I am retaining repeat words
@@ -84,6 +117,7 @@ class InvertedIndex:
         word_list = self.filter_stopwords(word_list)
         return File(file_path, file_contents, raw_txt, word_list, link_list)
 
+    #  Various misc functions ----
     def __len__(self):
         return len(self._inverted_index)
 
@@ -92,8 +126,18 @@ class InvertedIndex:
 
     def __getitem__(self, item):
         return self._inverted_index[item]
+    # -----------------------------
 
     def query(self, query: List[str]):
+        """
+        Runs a query
+
+        Args:
+            query: A list of words to query.
+
+        Returns:
+            The query results.
+        """
         if (len(query) != 0 and query[0] == '') or len(query) == 0:
             return set()
         if query[0][0] != '"' and query[-1][-1] != '"':
@@ -114,15 +158,51 @@ class InvertedIndex:
         return results
 
     def boolean_query(self, query: List[str]):
+        """
+        Runs a boolean query.
+
+        Args:
+            query: A list of words to query.
+
+        Returns:
+            The query results.
+        """
         return boolean_model(query, self._inverted_index)
 
     def vector_query(self, query: List[str]):
+        """
+        Runs a vector query.
+
+        Args:
+            query: A list of words to query.
+
+        Returns:
+            The query results.
+        """
         return vector_model(query, self._inverted_index)
 
     def phrasal_query(self, query: List[str]):
+        """
+        Runs a phrasal query.
+
+        Args:
+            query: A list of words to query.
+
+        Returns:
+            The query results.
+        """
         return phrasal_search(query, self._inverted_index)
 
     def get_file(self, file_path: str):
+        """
+        Gets a specific file from the file list.
+
+        Args:
+            file_path: The path to the file.
+
+        Returns:
+            The File.
+        """
         try:
             return next(x for x in self.file_list if x.filepath == file_path)
         except StopIteration:

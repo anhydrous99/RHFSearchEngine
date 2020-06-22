@@ -1,4 +1,4 @@
-""" CSCI 6370.01 Information Retrieval & Web Search - Project Part 2
+""" CSCI 6370.01 Information Retrieval & Web Search - Project Part 3
 
 Authors:
     Armando Herrera (ID: 20217690) Team Lead

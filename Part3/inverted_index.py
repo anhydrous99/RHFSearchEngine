@@ -7,7 +7,7 @@ import html2text
 import numpy as np
 import re
 
-File = collections.namedtuple('File', ['filepath', 'contents', 'wordlist', 'linklist'])
+File = collections.namedtuple('File', ['filepath', 'contents', 'text_contents', 'wordlist', 'linklist'])
 InvEntry = collections.namedtuple('InvEntry', ['df', 'docs'])
 
 
@@ -33,7 +33,7 @@ class InvertedIndex:
         self._stop_words = collections.Counter(tmp_swords)
 
         # Create a file list
-        file_list = []
+        self.file_list = []
         indexed_files = set()
         base_path = Path('rhf/')
         with ZipFile('rhf.zip') as zipfile:
@@ -42,7 +42,7 @@ class InvertedIndex:
                 with zipfile.open(str(file_path.as_posix())) as html_file:
                     contents = html_file.read().decode('utf-8')
                     idx_file = self._parse(contents, file_path)
-                    file_list.append(idx_file)
+                    self.file_list.append(idx_file)
                     indexed_files.add(file_path)
                 for link in idx_file.linklist:
                     link = (file_path.parent / link).resolve().relative_to('.')
@@ -53,12 +53,12 @@ class InvertedIndex:
         # Calculate the document frequency and idf
         # The counter container is great!! :D
         df = collections.Counter()
-        for file in file_list:
+        for file in self.file_list:
             df.update(file.wordlist)
         # Using idf = log_2 (N / (df + 1)) + 1
-        idf = {k: np.log2(len(file_list) / (v + 1)) + 1 for k, v in dict(df).items()}
+        idf = {k: np.log2(len(self.file_list) / (v + 1)) + 1 for k, v in dict(df).items()}
 
-        for file in file_list:
+        for file in self.file_list:
             for idx, word in enumerate(file.wordlist):
                 if word not in self._inverted_index:
                     self._inverted_index[word] = InvEntry(df[word], {})
@@ -82,7 +82,7 @@ class InvertedIndex:
         # Format links into proper list of links
         link_list = [obj[0] for obj in link_list]
         word_list = self.filter_stopwords(word_list)
-        return File(file_path, file_contents, word_list, link_list)
+        return File(file_path, file_contents, raw_txt, word_list, link_list)
 
     def __len__(self):
         return len(self._inverted_index)
@@ -93,12 +93,12 @@ class InvertedIndex:
     def __getitem__(self, item):
         return self._inverted_index[item]
 
-    def query(self, query):
+    def query(self, query: List[str]):
         if query[0][0] != '"' and query[-1][-1] != '"':
             # Boolean model
             if 'and' in query or 'or' in query or 'but' in query:
                 if len(query) < 3:
-                    print('Error: you need at least to words for boolean model.')
+                    print('Error: you need at least two words for boolean model.')
                 results = self.boolean_query(query)
             else:  # Vector space model
                 # Filter query for stop words
@@ -111,11 +111,17 @@ class InvertedIndex:
             results = self.phrasal_query(query)
         return results
 
-    def boolean_query(self, query):
+    def boolean_query(self, query: List[str]):
         return boolean_model(query, self._inverted_index)
 
-    def vector_query(self, query):
+    def vector_query(self, query: List[str]):
         return vector_model(query, self._inverted_index)
 
-    def phrasal_query(self, query):
+    def phrasal_query(self, query: List[str]):
         return phrasal_search(query, self._inverted_index)
+
+    def get_file(self, file_path: str):
+        try:
+            return next(x for x in self.file_list if x.filepath == file_path)
+        except StopIteration:
+            return None

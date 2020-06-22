@@ -41,6 +41,8 @@ class OutputGUI:
         return values[0] if len(values) != 0 else None
 
     def set_results(self, results: Union[List[str], Set[str]]):
+        if isinstance(results, Set):
+            results = list(results)
         self.layout[2][0].Update(values=results)
 
     def set_file_contents(self, contents: str):

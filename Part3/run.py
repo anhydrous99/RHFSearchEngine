@@ -12,7 +12,8 @@ def main():
         # When pressing OK
         if event.gui_event == GUIEvent.QUERY:
             results = inverted_index.query(event.query)
-            gui.set_results(results)
+            if len(results) != 0:
+                gui.set_results(results)
         elif event.gui_event == GUIEvent.DISPLAY: # When pressing display
             selected = gui.get_selected()
             if selected is not None:

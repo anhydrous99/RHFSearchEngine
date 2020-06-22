@@ -94,6 +94,8 @@ class InvertedIndex:
         return self._inverted_index[item]
 
     def query(self, query: List[str]):
+        if (len(query) != 0 and query[0] == '') or len(query) == 0:
+            return set()
         if query[0][0] != '"' and query[-1][-1] != '"':
             # Boolean model
             if 'and' in query or 'or' in query or 'but' in query:

@@ -29,8 +29,10 @@ class OutputGUI:
         Initiates the GUI
         """
         self.layout = [[psg.Text('Enter the query'), psg.InputText()],
-                       [psg.Button('Ok'), psg.Button('Cancel'), psg.Button('Display')],
+                       [psg.Button('Ok'), psg.Button('Cancel'), psg.Button('Display'),
+                        psg.Radio('Box 1', 1, default=True), psg.Radio('Box 2', 1)],
                        [psg.Listbox([], size=(50, 20), select_mode=psg.LISTBOX_SELECT_MODE_SINGLE),
+                        psg.Listbox([], size=(50, 20), select_mode=psg.LISTBOX_SELECT_MODE_SINGLE),
                         psg.Multiline(size=(51, 21), disabled=True)]]
 
         self.window = psg.Window('Search Webpages', self.layout, location=(40, 40),
@@ -45,6 +47,7 @@ class OutputGUI:
         """
         while True:
             event, values = self.window.read()
+            print(f'{event} {values}')
             if event == psg.WIN_CLOSED or event == 'Cancel' or event == 'Escape:27':
                 return GUIReturn(GUIEvent.CLOSE, [])
             if event != 'Ok' and event != '\r' and event != 'Display' and values[0] != '':
@@ -63,7 +66,10 @@ class OutputGUI:
         Returns:
             The selected Item, None otherwise.
         """
-        values = self.layout[2][0].get()
+        if self.layout[1][3].get():
+            values = self.layout[2][0].get()
+        else:
+            values = self.layout[2][1].get()
         return values[0] if len(values) != 0 else None
 
     def set_results(self, results: Union[List[str], Set[str]]):
@@ -75,6 +81,7 @@ class OutputGUI:
         """
         if isinstance(results, Set):
             results = list(results)
+        self.layout[2][1].Update(values=results)
         self.layout[2][0].Update(values=results)
 
     def set_file_contents(self, contents: str):
@@ -84,4 +91,4 @@ class OutputGUI:
         Args:
             contents: Said contents.
         """
-        self.layout[2][1].Update(value=contents)
+        self.layout[2][2].Update(value=contents)

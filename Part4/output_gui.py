@@ -1,4 +1,4 @@
-""" CSCI 6370.01 Information Retrieval & Web Search - Project Part 3
+""" CSCI 6370.01 Information Retrieval & Web Search - Project Part 4
 
 Authors:
     Armando Herrera (ID: 20217690) Team Lead
@@ -72,17 +72,21 @@ class OutputGUI:
             values = self.layout[2][1].get()
         return values[0] if len(values) != 0 else None
 
-    def set_results(self, results: Union[List[str], Set[str]]):
+    def set_results(self, result_s: Union[List[str], Set[str]], result_sprime=None):
         """
         Set the results of a query on the GUI.
 
         Args:
             results: The query results.
         """
-        if isinstance(results, Set):
-            results = list(results)
-        self.layout[2][1].Update(values=results)
-        self.layout[2][0].Update(values=results)
+        if isinstance(result_s, Set):
+            result_s = list(result_s)
+        self.layout[2][0].Update(values=result_s)
+
+        if result_sprime is not None:
+            if isinstance(result_sprime, Set):
+                result_sprime = list(result_s)
+            self.layout[2][1].Update(values=result_sprime)
 
     def set_file_contents(self, contents: str):
         """

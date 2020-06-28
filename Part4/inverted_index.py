@@ -9,12 +9,15 @@ File Details:
 """
 
 from models import boolean_model, vector_model, phrasal_search
+from sklearn.preprocessing import normalize
+from itertools import chain
 from zipfile import ZipFile
 from pathlib import Path
 from typing import List
 import collections
 import html2text
 import numpy as np
+import copy
 import re
 
 File = collections.namedtuple('File', ['filepath', 'contents', 'text_contents', 'wordlist', 'linklist'])
@@ -47,32 +50,34 @@ class InvertedIndex:
         self._stop_words = collections.Counter(tmp_swords)
 
         # Create a file list
-        self.file_list = []
+        self._file_list = []
         indexed_files = set()
         base_path = Path('rhf/')
         with ZipFile('rhf.zip') as zipfile:
             idx_file_path = base_path / 'index.html'
+
             def add(file_path: Path):
                 with zipfile.open(str(file_path.as_posix())) as html_file:
                     contents = html_file.read().decode('utf-8')
                     idx_file = self._parse(contents, file_path)
-                    self.file_list.append(idx_file)
+                    self._file_list.append(idx_file)
                     indexed_files.add(file_path)
                 for link in idx_file.linklist:
                     link = (file_path.parent / link).resolve().relative_to('.')
                     if (link.suffix == '.html' or link.suffix == '.htm') and link not in indexed_files:
                         add(link)
+
             add(idx_file_path)
 
         # Calculate the document frequency and idf
         # The counter container is great!! :D
         df = collections.Counter()
-        for file in self.file_list:
+        for file in self._file_list:
             df.update(file.wordlist)
         # Using idf = log_2 (N / (df + 1)) + 1
-        idf = {k: np.log2(len(self.file_list) / (v + 1)) + 1 for k, v in dict(df).items()}
+        idf = {k: np.log2(len(self._file_list) / (v + 1)) + 1 for k, v in dict(df).items()}
 
-        for file in self.file_list:
+        for file in self._file_list:
             for idx, word in enumerate(file.wordlist):
                 if word not in self._inverted_index:
                     self._inverted_index[word] = InvEntry(df[word], {})
@@ -126,6 +131,7 @@ class InvertedIndex:
 
     def __getitem__(self, item):
         return self._inverted_index[item]
+
     # -----------------------------
 
     def query(self, query: List[str]):
@@ -156,6 +162,69 @@ class InvertedIndex:
             query = [q.strip('"') for q in query]  # Strip " from strings
             results = self.phrasal_query(query)
         return results
+
+    def query_ref(self, query: List[str]):
+        """
+        Runs the algorithm listed in the Query Reformation (Part 4) Project
+
+        Args:
+            query: A list of words to query.
+
+        Returns:
+            Two query results.
+        """
+        results = self.query(query)
+        subquery = self.filter_stopwords(query)
+
+        # Create tfidf matrix
+        files = list(results)
+        tfidf_t = np.array([[self._inverted_index[q].docs[f]['tf-idf'] if self._inverted_index[q].docs.get(
+            f) is not None else 0 for f in files] if self._inverted_index.get(q) is not None else np.zeros(len(files))
+                            for q in subquery])
+        tfidf = tfidf_t.transpose()
+
+        file_similarity = collections.OrderedDict()
+        for idx, tfidf_file in enumerate(tfidf):
+            file_similarity[files[idx]] = tfidf_file.sum() / (np.linalg.norm(tfidf_file) * np.sqrt(tfidf_file.shape[0]))
+        # Sort the ordered dict -- Filter top ranked documents -- a sixteenth of the documents
+        file_similarity = collections.OrderedDict(sorted(file_similarity.items(), key=lambda x: x[1], reverse=True)[:len(file_similarity)//16])
+        files_dict = {file.filepath: file.wordlist for file in self._file_list}
+        K = [files_dict[f] for f in file_similarity]
+        K = set(chain.from_iterable(K))
+        K.update(subquery)
+        K = list(K)
+        K = self.filter_stopwords(K)
+
+        # This part is not very clear -- Not sure what you mean by calculate correlation -- I went ahead and
+        # calculated a matrix describing term similarity based on co-occurences
+        ## Find files where these words appear
+        K_query = copy.deepcopy(K)
+        for i in reversed(range(1, len(K_query))):
+            K_query.insert(i, 'or')
+        sub_results = self.boolean_query(K_query)
+        ## Create tfidf matrix
+        new_tfidf = np.zeros((len(K), len(sub_results)))
+        for x_idx, word in enumerate(K):
+            for y_idx, doc in enumerate(sub_results):
+                if self._inverted_index[word].docs.get(doc) is not None:
+                    new_tfidf[x_idx, y_idx] = self._inverted_index[word].docs[doc]['tf-idf']
+        ## Get query indexes
+        idxes = np.array([K.index(q) for q in subquery])
+        ## Normalize according to columns (documents)
+        normalize(new_tfidf, norm='l2', axis=1, copy=False)
+        corr = np.matmul(new_tfidf[idxes], new_tfidf.transpose())
+        ## Get the 4 largest indexes
+        flat = corr.flatten()
+        n = len(idxes) + 4
+        if n < len(flat):
+            ind = np.argpartition(flat, -n)[-n:]
+            ind = ind[np.argsort(-flat[ind])]
+            ind = np.unravel_index(ind, corr.shape)[1]
+
+            for idx in ind:
+                subquery.append(K[idx])
+
+        return results, self.query(subquery)
 
     def boolean_query(self, query: List[str]):
         """
@@ -204,6 +273,6 @@ class InvertedIndex:
             The File.
         """
         try:
-            return next(x for x in self.file_list if x.filepath == file_path)
+            return next(x for x in self._file_list if x.filepath == file_path)
         except StopIteration:
             return None

@@ -47,7 +47,6 @@ class OutputGUI:
         """
         while True:
             event, values = self.window.read()
-            print(f'{event} {values}')
             if event == psg.WIN_CLOSED or event == 'Cancel' or event == 'Escape:27':
                 return GUIReturn(GUIEvent.CLOSE, [])
             if event != 'Ok' and event != '\r' and event != 'Display' and values[0] != '':
@@ -77,7 +76,8 @@ class OutputGUI:
         Set the results of a query on the GUI.
 
         Args:
-            results: The query results.
+            result_s: The first query results.
+            result_sprime: The second query results.
         """
         if isinstance(result_s, Set):
             result_s = list(result_s)

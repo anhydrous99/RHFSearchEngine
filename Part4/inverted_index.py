@@ -45,7 +45,7 @@ class InvertedIndex:
         # I am making a lot of assumptions about the format of the html here.
         # Until I see the html pages this is going to be used for, this should be fine
         self._link_extractor = re.compile(r'\s+HREF=(?:"([^"]+)"|\'([^\']+)\').*?>(.*?)')
-        self._link_extractor_1 = re.compile(r'\s+href=(?:"([^"]+)"|\'([^\']+)\'|(.*?>)).*?>(.*?)')
+        self._link_extractor_1 = re.compile(r'\s+href=(?:(.*?>)).*?>(.*?)')
         # List of stopwords, storing as dictionary speeds up search to O(1)
         stop_word_path = 'stopwords.txt'
         with open(stop_word_path, encoding='utf8') as f:
@@ -57,7 +57,7 @@ class InvertedIndex:
         self._file_list = []
         indexed_files = set()
         base_path = Path('rhf/')
-        counter = tqdm(desc='Links Crawled')
+        counter = tqdm(desc='Links Crawled', unit='link')
         with ZipFile('rhf.zip') as zipfile:
             idx_file_path = base_path / 'index.html'
             def add(file_path: Path):
@@ -70,8 +70,9 @@ class InvertedIndex:
                 except KeyError:
                     return []
                 idx_file = self._parse(contents, file_path)
-                self._file_list.append(idx_file)
-                indexed_files.add(file_path)
+                if file_path not in indexed_files:
+                    self._file_list.append(idx_file)
+                    indexed_files.add(file_path)
                 counter.update()
                 output = []
                 for link in idx_file.linklist:
@@ -85,7 +86,7 @@ class InvertedIndex:
                 queue.extend(add(queue.pop()))
 
         counter.close()
-        print(len(self._file_list))
+        print(f'Pages found: {len(self._file_list)}')
 
         # Calculate the document frequency and idf
         # The counter container is great!! :D
@@ -145,7 +146,8 @@ class InvertedIndex:
                         link_list.append(l[:-1])
                     else:
                         link_list.append(l)
-        link_list = [link for link in link_list if 'mailto' not in link and ':' not in link and '-' not in link]
+        link_list = set([link for link in link_list if 'mailto' not in link and ':' not in link and '-' not in link])
+        link_list = list(link_list)
         word_list = self.filter_stopwords(word_list)
         return File(file_path, file_contents, raw_txt, word_list, link_list)
 

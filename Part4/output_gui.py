@@ -47,9 +47,9 @@ class OutputGUI:
         """
         while True:
             event, values = self.window.read()
-            if event == psg.WIN_CLOSED or event == 'Cancel' or event == 'Escape:27':
+            if event == psg.WIN_CLOSED or event == 'Cancel':
                 return GUIReturn(GUIEvent.CLOSE, [])
-            if event != 'Ok' and event != '\r' and event != 'Display' and values[0] != '':
+            if (event != 'Ok' and event != 'Display') and values[0] != '':
                 continue
             if event == 'Display':
                 return GUIReturn(GUIEvent.DISPLAY, [])

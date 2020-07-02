@@ -10,18 +10,22 @@ File Details:
 
 from models import boolean_model, vector_model, phrasal_search
 from sklearn.preprocessing import normalize
+from bs4 import BeautifulSoup
 from itertools import chain
 from zipfile import ZipFile
 from pathlib import Path
 from typing import List
+from tqdm import tqdm
 import collections
 import html2text
 import numpy as np
 import copy
+import sys
 import re
 
 File = collections.namedtuple('File', ['filepath', 'contents', 'text_contents', 'wordlist', 'linklist'])
 InvEntry = collections.namedtuple('InvEntry', ['df', 'docs'])
+sys.setrecursionlimit(10**6)
 
 
 class InvertedIndex:
@@ -30,6 +34,7 @@ class InvertedIndex:
         Initiates all regular expression/html2text engines as well as created a file list and the inverted index.
         Here we crawl our way through the html files starting from the index.html file at rhf/index.html.
         """
+        print('Initializing Stuff')
         self._inverted_index = {}
         # Initiate the html parser
         self._html2text = html2text.HTML2Text()
@@ -37,11 +42,8 @@ class InvertedIndex:
         self._html2text.ignore_images = True
         self._html2text.ignore_emphasis = True
         self._html2text.escape_all = True
-        # Initiate the word/link extractors, uses regular expression
+        # Initiate the word extractors, uses regular expression
         self._word_extractor = re.compile(r'[^\W_0123456789]+')
-        # I am making a lot of assumptions about the format of the html here.
-        # Until I see the html pages this is going to be used for, this should be fine
-        self._link_extractor = re.compile(r'\s+HREF=(?:"([^"]+)"|\'([^\']+)\').*?>(.*?)')
         # List of stopwords, storing as dictionary speeds up search to O(1)
         stop_word_path = 'stopwords.txt'
         with open(stop_word_path, encoding='utf8') as f:
@@ -50,27 +52,38 @@ class InvertedIndex:
         self._stop_words = collections.Counter(tmp_swords)
 
         # Create a file list
+        print('Crawling')
         self._file_list = []
         indexed_files = set()
         base_path = Path('rhf/')
+        counter = tqdm()
         with ZipFile('rhf.zip') as zipfile:
             idx_file_path = base_path / 'index.html'
-
             def add(file_path: Path):
-                with zipfile.open(str(file_path.as_posix())) as html_file:
-                    contents = html_file.read().decode('utf-8')
-                    idx_file = self._parse(contents, file_path)
-                    self._file_list.append(idx_file)
-                    indexed_files.add(file_path)
-                for link in idx_file.linklist:
-                    link = (file_path.parent / link).resolve().relative_to('.')
-                    if (link.suffix == '.html' or link.suffix == '.htm') and link not in indexed_files:
-                        add(link)
+                try:
+                    with zipfile.open(str(file_path.as_posix())) as html_file:
+                        contents = html_file.read().decode('utf-8', errors='ignore')
+                        idx_file = self._parse(contents, file_path)
+                        self._file_list.append(idx_file)
+                        counter.update()
+                        indexed_files.add(file_path)
+                    for link in idx_file.linklist:
+                        try:
+                            link = (file_path.parent / link).resolve().relative_to('.')
+                        except:
+                            continue
+                        if link not in indexed_files:
+                            add(link)
+                except KeyError:
+                    return
 
             add(idx_file_path)
+        counter.close()
+        print(f'N Files: {len(self._file_list)}')
 
         # Calculate the document frequency and idf
         # The counter container is great!! :D
+        print('Creating inverted index')
         df = collections.Counter()
         for file in self._file_list:
             df.update(file.wordlist)
@@ -116,9 +129,13 @@ class InvertedIndex:
         # Extract all words, I am retaining repeat words
         word_list = [w.lower() for w in self._word_extractor.findall(raw_txt)]
         # Extract all links
-        link_list = self._link_extractor.findall(file_contents)
-        # Format links into proper list of links
-        link_list = [obj[0] for obj in link_list]
+        page = BeautifulSoup(file_contents, 'lxml')
+        link_list = [tag.get('href') for tag in page.find_all('a') if
+                     tag.get('href') is not None and 'mailto' not in tag.get('href') and 'htm' in tag.get('href')]
+        link_list = [link if '?' not in link else link.split('?')[0] for link in link_list if '-' not in link]
+        link_list = [link if '#' not in link else link.split('#')[0] for link in link_list]
+        link_list = [link if '>' not in link else link.split('>')[0] for link in link_list]
+        link_list = [link for link in link_list if 'htm' in link.split('/')[-1]]
         word_list = self.filter_stopwords(word_list)
         return File(file_path, file_contents, raw_txt, word_list, link_list)
 
@@ -187,7 +204,8 @@ class InvertedIndex:
         for idx, tfidf_file in enumerate(tfidf):
             file_similarity[files[idx]] = tfidf_file.sum() / (np.linalg.norm(tfidf_file) * np.sqrt(tfidf_file.shape[0]))
         # Sort the ordered dict -- Filter top ranked documents -- a sixteenth of the documents
-        file_similarity = collections.OrderedDict(sorted(file_similarity.items(), key=lambda x: x[1], reverse=True)[:len(file_similarity)//16])
+        file_similarity = collections.OrderedDict(
+            sorted(file_similarity.items(), key=lambda x: x[1], reverse=True)[:len(file_similarity) // 16])
         files_dict = {file.filepath: file.wordlist for file in self._file_list}
         K = [files_dict[f] for f in file_similarity]
         K = set(chain.from_iterable(K))

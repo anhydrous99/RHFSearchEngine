@@ -6,16 +6,21 @@ Authors:
 
 Usage:
     The files stopwords.txt, tok.py, models.py, and run.py must be in the same directory as Jan.zip. This project is
-    dependent on 3 libraries: html2text, numpy, and PySimpleGUI. To install::
+    dependent on 3 libraries: html2text, numpy, sckit-learn, and PySimpleGUI. To install::
 
-        $ pip install html2text numpy PySimpleGUI
+        $ pip install html2text numpy PySimpleGUI scikit-learn
 
-    This project was built using python version 3.8 so any other python version is considered to be untested, it might
-    work but it is not guaranteed unless you are using version 3.8. The GUI has 6 elements, the first, a text entry
-    where queries are made, an ok button to run the query, a cancel button to exit the program, a display button to
-    display found file contents, and a ListBox text output where the results of the query is shown, and a MultiLine to
-    display file contents. You can also run a query by pressing the Enter key or you can also exit the program by
-    pressing the Escape key. To run:
+    Two boxes show the two results from the raw query and from the algorithm described in Part 4. Since, in part 3,
+    crawling didn't get everything I used a very broad regex with a lot of false positives. I believe this is because
+    some html page's "a" tags are not proper html format.
+    They are formatted as:
+    <a href=url>
+    Instead of
+    <a HREF="url"> or <a href='href'> or <a HREF='url> or <a href="url">
+    Anyway, the the number of articles, since python's frame size is large, this program hit the recursion limit.
+    I changed those to a non-recursive version. Recursion in python is a bad idea, lol.
+
+    To run:
 
         $ python run.py
 """

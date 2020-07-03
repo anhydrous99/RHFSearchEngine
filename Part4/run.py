@@ -19,6 +19,7 @@ Usage:
     <a HREF="url"> or <a href='href'> or <a HREF='url> or <a href="url">
     Anyway, the the number of articles, since python's frame size is large, this program hit the recursion limit.
     I changed those to a non-recursive version. Recursion in python is a bad idea, lol.
+    Btw, box 1 has the raw results and box 2 has the results from the part 3 algo.
 
     To run:
 

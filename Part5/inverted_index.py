@@ -9,7 +9,6 @@ File Details:
 """
 
 from models import boolean_model, vector_model, phrasal_search
-from sklearn.preprocessing import normalize
 from itertools import chain
 from zipfile import ZipFile
 from pathlib import Path
@@ -19,12 +18,10 @@ import collections
 import html2text
 import numpy as np
 import copy
-import sys
 import re
 
 File = collections.namedtuple('File', ['filepath', 'contents', 'text_contents', 'wordlist', 'linklist'])
 InvEntry = collections.namedtuple('InvEntry', ['df', 'docs'])
-sys.setrecursionlimit(10**6)
 
 
 class InvertedIndex:
@@ -240,7 +237,8 @@ class InvertedIndex:
         ## Get query indexes
         idxes = np.array([K.index(q) for q in subquery])
         ## Normalize according to columns (documents)
-        normalize(new_tfidf, norm='l2', axis=1, copy=False)
+        new_tfidf_norms = np.apply_along_axis(np.linalg.norm, 1, new_tfidf).reshape(-1, 1)
+        new_tfidf = new_tfidf / new_tfidf_norms
         corr = np.matmul(new_tfidf[idxes], new_tfidf.transpose())
         ## Get the 4 largest indexes
         flat = corr.flatten()

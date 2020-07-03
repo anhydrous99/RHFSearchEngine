@@ -30,7 +30,8 @@ class OutputGUI:
         """
         self.layout = [[psg.Text('Enter the query'), psg.InputText()],
                        [psg.Button('Ok'), psg.Button('Cancel'), psg.Button('Display'),
-                        psg.Radio('Box 1', 1, default=True), psg.Radio('Box 2', 1)],
+                        psg.Radio('Box 1', 1, default=True), psg.Radio('Box 2', 1),
+                        psg.Checkbox('Use Content Recommendation')],
                        [psg.Listbox([], size=(50, 20), select_mode=psg.LISTBOX_SELECT_MODE_SINGLE),
                         psg.Listbox([], size=(50, 20), select_mode=psg.LISTBOX_SELECT_MODE_SINGLE),
                         psg.Multiline(size=(51, 21), disabled=True)]]

@@ -6,9 +6,9 @@ Authors:
 
 Usage:
     The files stopwords.txt, tok.py, models.py, and run.py must be in the same directory as Jan.zip. This project is
-    dependent on 3 libraries: html2text, numpy, sckit-learn, and PySimpleGUI. To install::
+    dependent on 3 libraries: html2text, numpy, and PySimpleGUI. To install::
 
-        $ pip install html2text numpy PySimpleGUI scikit-learn
+        $ pip install html2text numpy PySimpleGUI
 
     Two boxes show the two results from the raw query and from the algorithm described in Part 4. Since, in part 3,
     crawling didn't get everything I used a very broad regex with a lot of false positives. I believe this is because

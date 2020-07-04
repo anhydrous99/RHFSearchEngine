@@ -9,6 +9,8 @@ File Details:
 """
 
 from models import boolean_model, vector_model, phrasal_search
+from scipy.stats import pearsonr
+from joblib import Parallel, delayed
 from itertools import chain
 from zipfile import ZipFile
 from pathlib import Path
@@ -17,11 +19,32 @@ from tqdm import tqdm
 import collections
 import html2text
 import numpy as np
+import pickle
+import gzip
 import copy
 import re
 
 File = collections.namedtuple('File', ['filepath', 'contents', 'text_contents', 'wordlist', 'linklist'])
 InvEntry = collections.namedtuple('InvEntry', ['df', 'docs'])
+
+
+def _corr(word_list1, word_list2):
+    words = set(word_list1)
+    words.update(word_list2)
+    words = list(words)
+    vec1 = np.zeros(len(words))
+    vec2 = np.zeros(len(words))
+    word_set1 = collections.Counter(word_list1)
+    word_set2 = collections.Counter(word_list2)
+
+    for word in word_set1:
+        idx = words.index(word)
+        vec1[idx] = word_set1[word]
+    for word in word_set2:
+        idx = words.index(word)
+        vec2[idx] = word_set2[word]
+    r, p = pearsonr(vec1, vec2)
+    return r
 
 
 class InvertedIndex:
@@ -103,6 +126,27 @@ class InvertedIndex:
                     self._inverted_index[word].docs[file.filepath]['freq'] += 1
                     self._inverted_index[word].docs[file.filepath]['tf-idf'] += idf[word]
                     self._inverted_index[word].docs[file.filepath]['postings'].append(idx)
+
+        # Calculate Document Correlation List
+        def corr_list(file_list: List[File], doc1: File):
+            tmp = {}
+            cutoff = 0.01
+            for doc2 in file_list:
+                if doc1 == doc2:
+                    continue
+                corr = _corr(doc1.wordlist, doc2.wordlist)
+                if corr != np.nan and corr > cutoff:
+                    tmp[doc2.filepath] = corr
+            return {doc1.filepath: tmp}
+
+
+        results = Parallel(n_jobs=12)(delayed(corr_list)(self._file_list, doc) for doc in tqdm(self._file_list, desc='Calculating Correlations', unit='doc'))
+        self._doc_corr = {list(r.keys())[0]:list(r.values())[0] for r in tqdm(results, desc='Post Prossesing Correlations', unit='doc')}
+
+        # Save stuff
+        with gzip.open('cache.data', 'wb') as g_file:
+            pickle.dump((self._file_list, self._inverted_index, self._doc_corr), g_file)
+
 
     def filter_stopwords(self, word_list: List[str]):
         """

@@ -61,28 +61,6 @@ def boolean_model(query: List[str], inverted_index: Dict):
     return initial_set
 
 
-# def boolean_model(query: List[str], inverted_index: Dict) -> Set:
-#     """
-#     Uses the boolean model to search for relevant documents in an inverted index via recursion.
-#
-#     Args:
-#         query: A list of strings with 'and', 'or', or 'but's.
-#         inverted_index: The inverted index to search through
-#
-#     Returns:
-#         A set of strings with the names of the files that where found
-#     """
-#     if len(query) == 1 and (query[0] == 'but' or query[0] == 'or' or query[0] == 'and'):
-#         return set()
-#     if len(query) == 3:
-#         set1 = check(inverted_index.get(query[0]))
-#         set2 = check(inverted_index.get(query[2]))
-#         return combine(set1, set2, query[1])
-#     set2 = boolean_model(query[2:], inverted_index)
-#     set1 = check(inverted_index.get(query[0]))
-#     return combine(set1, set2, query[1])
-
-
 def vector_model(query: List[str], inverted_matrix: Dict) -> List:
     """
     Uses the vector space model to search for relevant documents in an inverted index.

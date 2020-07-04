@@ -9,7 +9,7 @@ File Details:
 """
 
 from models import boolean_model, vector_model, phrasal_search
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, spearmanr
 from joblib import Parallel, delayed
 from itertools import chain
 from zipfile import ZipFile
@@ -79,7 +79,7 @@ class InvertedIndex:
         if cache_path.exists() and cache_path.is_file():
             print('Cache file found - Importing Cache')
             with gzip.open(cache_path, 'rb') as g_file:
-                self._file_list, self._inverted_index, self._doc_corr = pickle.load(g_file)
+                self._file_list, self._inverted_index, self._doc_corr, self._doc_tfidf = pickle.load(g_file)
         else:
             # Create a file list
             self._file_list = []
@@ -137,6 +137,14 @@ class InvertedIndex:
                         self._inverted_index[word].docs[file.filepath]['tf-idf'] += idf[word]
                         self._inverted_index[word].docs[file.filepath]['postings'].append(idx)
 
+            # Create Document TF-IDF List
+            self._doc_tfidf = {}
+            for file in tqdm(self._file_list, desc='Generating Document TF-IDF List', unit='doc'):
+                self._doc_tfidf[file.filepath] = {}
+                for idx, word in enumerate(file.wordlist):
+                    if word in self._inverted_index and file.filepath in self._inverted_index[word].docs:
+                        self._doc_tfidf[file.filepath][word] = self._inverted_index[word].docs[file.filepath]['tf-idf']
+
             # Calculate Document Correlation List
             def corr_list(file_list: List[File], doc1: File):
                 tmp = {}
@@ -155,7 +163,7 @@ class InvertedIndex:
             self._doc_corr = {list(r.keys())[0]: list(r.values())[0] for r in results}
             # Save cache
             with gzip.open(cache_path, 'wb') as g_file:
-                pickle.dump((self._file_list, self._inverted_index, self._doc_corr), g_file)
+                pickle.dump((self._file_list, self._inverted_index, self._doc_corr, self._doc_tfidf), g_file)
 
     def filter_stopwords(self, word_list: List[str]):
         """
@@ -255,12 +263,9 @@ class InvertedIndex:
         results = self.query(query)
         subquery = self.filter_stopwords(query)
 
-        # Create tfidf matrix
+        # Create tf-idf matrix
         files = list(results)
-        tfidf_t = np.array([[self._inverted_index[q].docs[f]['tf-idf'] if self._inverted_index[q].docs.get(
-            f) is not None else 0 for f in files] if self._inverted_index.get(q) is not None else np.zeros(len(files))
-                            for q in subquery])
-        tfidf = tfidf_t.transpose()
+        tfidf = np.array([[self._doc_tfidf[f][q] if q in self._doc_tfidf[f] else 0 for q in subquery] for f in files])
 
         file_similarity = collections.OrderedDict()
         for idx, tfidf_file in enumerate(tfidf):
@@ -275,26 +280,15 @@ class InvertedIndex:
         K = list(K)
         K = self.filter_stopwords(K)
 
-        # This part is not very clear -- Not sure what you mean by calculate correlation -- I went ahead and
-        # calculated a matrix describing term similarity based on co-occurences
-        ## Find files where these words appear
-        K_query = copy.deepcopy(K)
-        for i in reversed(range(1, len(K_query))):
-            K_query.insert(i, 'or')
-        sub_results = self.boolean_query(K_query)
-        ## Create tfidf matrix
-        new_tfidf = np.zeros((len(K), len(sub_results)))
-        for x_idx, word in enumerate(K):
-            for y_idx, doc in enumerate(sub_results):
-                if self._inverted_index[word].docs.get(doc) is not None:
-                    new_tfidf[x_idx, y_idx] = self._inverted_index[word].docs[doc]['tf-idf']
-        ## Get query indexes
+        # Get query indexes
         idxes = np.array([K.index(q) for q in subquery])
-        ## Normalize according to columns (documents)
-        new_tfidf_norms = np.apply_along_axis(np.linalg.norm, 1, new_tfidf).reshape(-1, 1)
-        new_tfidf = new_tfidf / new_tfidf_norms
-        corr = np.matmul(new_tfidf[idxes], new_tfidf.transpose())
-        ## Get the 4 largest indexes
+        tfidf = np.array([[self._doc_tfidf[f][k] if k in self._doc_tfidf[f] else 0 for k in K] for f in files])
+        tfidf = tfidf.transpose()
+        # Normalize according to columns (documents)
+        tfidf_norms = np.apply_along_axis(np.linalg.norm, 1, tfidf).reshape(-1, 1)
+        tfidf = tfidf / tfidf_norms
+        corr = np.matmul(tfidf[idxes], tfidf.transpose())
+        # Get the 4 largest indexes
         flat = corr.flatten()
         n = len(idxes) + 4
         if n < len(flat):

@@ -16,13 +16,15 @@ from zipfile import ZipFile
 from pathlib import Path
 from typing import List
 from tqdm import tqdm
+import multiprocessing
+import numpy as np
 import collections
 import html2text
-import numpy as np
 import pickle
 import gzip
 import copy
 import re
+import os
 
 File = collections.namedtuple('File', ['filepath', 'contents', 'text_contents', 'wordlist', 'linklist'])
 InvEntry = collections.namedtuple('InvEntry', ['df', 'docs'])
@@ -73,80 +75,87 @@ class InvertedIndex:
         tmp_swords = [w.strip(' \n') for w in tmp_swords]  # Strip spaces and end-line characters
         self._stop_words = collections.Counter(tmp_swords)
 
-        # Create a file list
-        self._file_list = []
-        indexed_files = set()
-        base_path = Path('rhf/')
-        counter = tqdm(desc='Links Crawled', unit='link')
-        with ZipFile('rhf.zip') as zipfile:
-            idx_file_path = base_path / 'index.html'
-            def add(file_path: Path):
-                try:
-                    with zipfile.open(str(file_path.as_posix())) as html_file:
-                        try:
-                            contents = html_file.read().decode('utf-8')
-                        except UnicodeDecodeError:
-                            return []
-                except KeyError:
-                    return []
-                idx_file = self._parse(contents, file_path)
-                if file_path not in indexed_files:
-                    self._file_list.append(idx_file)
-                    indexed_files.add(file_path)
-                counter.update()
-                output = []
-                for link in idx_file.linklist:
-                    link = (file_path.parent / link).resolve().relative_to('.')
-                    if link.suffix == '.html' and link not in indexed_files:
-                        output.append(link)
-                return output
+        cache_path = Path('cache.data')
+        if cache_path.exists() and cache_path.is_file():
+            print('Cache file found - Importing Cache')
+            with gzip.open(cache_path, 'rb') as g_file:
+                self._file_list, self._inverted_index, self._doc_corr = pickle.load(g_file)
+        else:
+            # Create a file list
+            self._file_list = []
+            indexed_files = set()
+            base_path = Path('rhf/')
+            counter = tqdm(desc='Links Crawled', unit='link')
+            with ZipFile('rhf.zip') as zipfile:
 
-            queue = collections.deque(add(idx_file_path))
-            while len(queue) != 0:
-                queue.extend(add(queue.pop()))
+                def add(file_path: Path):
+                    try:
+                        with zipfile.open(str(file_path.as_posix())) as html_file:
+                            try:
+                                contents = html_file.read().decode('utf-8')
+                            except UnicodeDecodeError:
+                                return []
+                    except KeyError:
+                        return []
+                    idx_file = self._parse(contents, file_path)
+                    if file_path not in indexed_files:
+                        self._file_list.append(idx_file)
+                        indexed_files.add(file_path)
+                    counter.update()
+                    output = []
+                    for link in idx_file.linklist:
+                        link = (file_path.parent / link).resolve()
+                        link = Path(os.path.relpath(link, '.'))
+                        if link.suffix == '.html' and link not in indexed_files:
+                            output.append(link)
+                    return output
 
-        counter.close()
-        print(f'Pages found: {len(self._file_list)}')
+                idx_file_path = base_path / 'index.html'
+                queue = collections.deque(add(idx_file_path))
+                while len(queue) != 0:
+                    queue.extend(add(queue.pop()))
 
-        # Calculate the document frequency and idf
-        # The counter container is great!! :D
-        df = collections.Counter()
-        for file in self._file_list:
-            df.update(file.wordlist)
-        # Using idf = log_2 (N / (df + 1)) + 1
-        idf = {k: np.log2(len(self._file_list) / (v + 1)) + 1 for k, v in dict(df).items()}
+            counter.close()
+            print(f'Pages found: {len(self._file_list)}')
 
-        for file in self._file_list:
-            for idx, word in enumerate(file.wordlist):
-                if word not in self._inverted_index:
-                    self._inverted_index[word] = InvEntry(df[word], {})
-                if file.filepath not in self._inverted_index[word].docs:
-                    self._inverted_index[word].docs[file.filepath] = {'freq': 1, 'tf-idf': idf[word], 'postings': [idx]}
-                else:
-                    self._inverted_index[word].docs[file.filepath]['freq'] += 1
-                    self._inverted_index[word].docs[file.filepath]['tf-idf'] += idf[word]
-                    self._inverted_index[word].docs[file.filepath]['postings'].append(idx)
+            # Calculate the document frequency and idf
+            # The counter container is great!! :D
+            df = collections.Counter()
+            for file in self._file_list:
+                df.update(file.wordlist)
+            # Using idf = log_2 (N / (df + 1)) + 1
+            idf = {k: np.log2(len(self._file_list) / (v + 1)) + 1 for k, v in dict(df).items()}
 
-        # Calculate Document Correlation List
-        def corr_list(file_list: List[File], doc1: File):
-            tmp = {}
-            cutoff = 0.01
-            for doc2 in file_list:
-                if doc1 == doc2:
-                    continue
-                corr = _corr(doc1.wordlist, doc2.wordlist)
-                if corr != np.nan and corr > cutoff:
-                    tmp[doc2.filepath] = corr
-            return {doc1.filepath: tmp}
+            for file in self._file_list:
+                for idx, word in enumerate(file.wordlist):
+                    if word not in self._inverted_index:
+                        self._inverted_index[word] = InvEntry(df[word], {})
+                    if file.filepath not in self._inverted_index[word].docs:
+                        self._inverted_index[word].docs[file.filepath] = {'freq': 1, 'tf-idf': idf[word], 'postings': [idx]}
+                    else:
+                        self._inverted_index[word].docs[file.filepath]['freq'] += 1
+                        self._inverted_index[word].docs[file.filepath]['tf-idf'] += idf[word]
+                        self._inverted_index[word].docs[file.filepath]['postings'].append(idx)
 
+            # Calculate Document Correlation List
+            def corr_list(file_list: List[File], doc1: File):
+                tmp = {}
+                cutoff = 0.01
+                for doc2 in file_list:
+                    if doc1 == doc2:
+                        continue
+                    corr = _corr(doc1.wordlist, doc2.wordlist)
+                    if corr != np.nan and corr > cutoff:
+                        tmp[doc2.filepath] = corr
+                return {doc1.filepath: tmp}
 
-        results = Parallel(n_jobs=12)(delayed(corr_list)(self._file_list, doc) for doc in tqdm(self._file_list, desc='Calculating Correlations', unit='doc'))
-        self._doc_corr = {list(r.keys())[0]:list(r.values())[0] for r in tqdm(results, desc='Post Prossesing Correlations', unit='doc')}
-
-        # Save stuff
-        with gzip.open('cache.data', 'wb') as g_file:
-            pickle.dump((self._file_list, self._inverted_index, self._doc_corr), g_file)
-
+            results = Parallel(n_jobs=multiprocessing.cpu_count())(delayed(corr_list)(self._file_list, doc) for doc in
+                                          tqdm(self._file_list, desc='Calculating Correlations', unit='doc'))
+            print('Post-processing correlations')
+            self._doc_corr = {list(r.keys())[0]: list(r.values())[0] for r in results}
+            # Save cache
+            with gzip.open(cache_path, 'wb') as g_file:
+                pickle.dump((self._file_list, self._inverted_index, self._doc_corr), g_file)
 
     def filter_stopwords(self, word_list: List[str]):
         """
@@ -257,7 +266,8 @@ class InvertedIndex:
         for idx, tfidf_file in enumerate(tfidf):
             file_similarity[files[idx]] = tfidf_file.sum() / (np.linalg.norm(tfidf_file) * np.sqrt(tfidf_file.shape[0]))
         # Sort the ordered dict -- Filter top ranked documents -- a sixteenth of the documents
-        file_similarity = collections.OrderedDict(sorted(file_similarity.items(), key=lambda x: x[1], reverse=True)[:len(file_similarity)//16])
+        file_similarity = collections.OrderedDict(
+            sorted(file_similarity.items(), key=lambda x: x[1], reverse=True)[:len(file_similarity) // 16])
         files_dict = {file.filepath: file.wordlist for file in self._file_list}
         K = [files_dict[f] for f in file_similarity]
         K = set(chain.from_iterable(K))

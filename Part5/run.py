@@ -40,7 +40,7 @@ def main():
         # When pressing OK
         if event.gui_event == GUIEvent.QUERY:
             if event.query != '':
-                results = inverted_index.query_ref(event.query)
+                results = inverted_index.query_ref(event.query, True if event.use_rec == 1 else False)
                 if len(results) != 0:
                     gui.set_results(*results)
         elif event.gui_event == GUIEvent.DISPLAY: # When pressing display

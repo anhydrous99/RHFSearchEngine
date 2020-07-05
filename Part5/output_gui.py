@@ -14,7 +14,7 @@ import PySimpleGUI as psg
 from enum import Enum
 import collections
 
-GUIReturn = collections.namedtuple('GUIReturn', ['gui_event', 'query'])
+GUIReturn = collections.namedtuple('GUIReturn', ['gui_event', 'query', 'use_rec'])
 
 
 class GUIEvent(Enum):
@@ -49,15 +49,15 @@ class OutputGUI:
         while True:
             event, values = self.window.read()
             if event == psg.WIN_CLOSED or event == 'Cancel':
-                return GUIReturn(GUIEvent.CLOSE, [])
+                return GUIReturn(GUIEvent.CLOSE, [], None)
             if (event != 'Ok' and event != 'Display') and values[0] != '':
                 continue
             if event == 'Display':
-                return GUIReturn(GUIEvent.DISPLAY, [])
+                return GUIReturn(GUIEvent.DISPLAY, [], None)
             break
         query = values[0].split(' ')  # Split based on spaces
         query = [q.lower() for q in query]  # Convert to lower case
-        return GUIReturn(GUIEvent.QUERY, query)
+        return GUIReturn(GUIEvent.QUERY, query, self.layout[1][5].get())
 
     def get_selected(self):
         """
@@ -70,9 +70,9 @@ class OutputGUI:
             values = self.layout[2][0].get()
         else:
             values = self.layout[2][1].get()
-        return values[0] if len(values) != 0 else None
+        return (values[0] if values[0] != '/\/\ recommendations /\/\\' else None) if len(values) != 0 else None
 
-    def set_results(self, result_s: Union[List[str], Set[str]], result_sprime=None):
+    def set_results(self, result_s: Union[List[str], Set[str]], result_sprime=None, recs1=None, recs2=None):
         """
         Set the results of a query on the GUI.
 
@@ -82,11 +82,15 @@ class OutputGUI:
         """
         if isinstance(result_s, Set):
             result_s = list(result_s)
+        if recs1 is not None:
+            result_s = recs1 + ['/\/\ recommendations /\/\\'] + result_s
         self.layout[2][0].Update(values=result_s)
 
         if result_sprime is not None:
             if isinstance(result_sprime, Set):
                 result_sprime = list(result_s)
+            if recs2 is not None:
+                result_sprime = recs2 + ['/\/\ recommendations /\/\\'] + result_sprime
             self.layout[2][1].Update(values=result_sprime)
 
     def set_file_contents(self, contents: str):

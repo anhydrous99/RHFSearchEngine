@@ -9,7 +9,7 @@ File Details:
 """
 
 from models import boolean_model, vector_model, phrasal_search
-from scipy.stats import pearsonr, spearmanr
+from scipy.stats import pearsonr
 from joblib import Parallel, delayed
 from itertools import chain
 from zipfile import ZipFile
@@ -17,12 +17,12 @@ from pathlib import Path
 from typing import List
 from tqdm import tqdm
 import multiprocessing
+import pandas as pd
 import numpy as np
 import collections
 import html2text
 import pickle
 import gzip
-import copy
 import re
 import os
 
@@ -250,7 +250,7 @@ class InvertedIndex:
             results = self.phrasal_query(query)
         return results
 
-    def query_ref(self, query: List[str]):
+    def query_ref(self, query: List[str], calc_rec=True):
         """
         Runs the algorithm listed in the Query Reformation (Part 4) Project
 
@@ -299,7 +299,33 @@ class InvertedIndex:
             for idx in ind:
                 subquery.append(K[idx])
 
+        if calc_rec:
+            subquery_results = self.query(subquery)
+            return results, subquery_results, self._gen_rec(file_similarity.keys()), self._gen_rec(subquery_results)
+
         return results, self.query(subquery)
+
+    def _gen_rec(self, a_set):
+        if len(a_set) == 0:
+            return []
+        doc_corr = {}
+        n_recs = 5
+        for a in a_set:
+            doc_corr[a] = self._doc_corr[a]
+        doc_df = pd.DataFrame(doc_corr).fillna(0)
+        largest_np = doc_df.values
+
+        vec_sum = np.average(largest_np, axis=1)
+
+        if vec_sum.shape[0] < n_recs:
+            n_recs = vec_sum.shape[0]
+
+        ind = np.argpartition(vec_sum, -n_recs)[-n_recs:]
+
+        output_l = []
+        for i in ind:
+            output_l.append(doc_df.index.values[i])
+        return output_l
 
     def boolean_query(self, query: List[str]):
         """

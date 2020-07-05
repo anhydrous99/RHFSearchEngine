@@ -97,7 +97,7 @@ class InvertedIndex:
                                 return []
                     except KeyError:
                         return []
-                    idx_file = self._parse(contents, file_path)
+                    idx_file = self._parse(contents, str(file_path.as_posix()))
                     if file_path not in indexed_files:
                         self._file_list.append(idx_file)
                         indexed_files.add(file_path)
@@ -177,7 +177,7 @@ class InvertedIndex:
         """
         return [w for w in word_list if w not in self._stop_words]
 
-    def _parse(self, file_contents: str, file_path: Path) -> File:
+    def _parse(self, file_contents: str, file_path: str) -> File:
         """
         Parses and individual file.
 

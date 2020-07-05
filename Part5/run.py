@@ -8,7 +8,7 @@ Usage:
     The files stopwords.txt, inverted_index.py, models.py, output_gui.py, and run.py must be in the same directory as
     Jan.zip. This project is dependent on 5 libraries: html2text, numpy, pandas, joblib, and PySimpleGUI. To install::
 
-        $ pip install html2text numpy PySimpleGUI pandas joblib
+        $ pip install html2text numpy scipy PySimpleGUI pandas joblib tqdm
 
     Part 5's algorithm is in the class InvertedIndex, in the member functions _gen_rec and query_ref. For quick starts
     the cache file cache.data is required. If the cache.data file is not detected it will be generated. With a

@@ -8,7 +8,6 @@ File Details:
     The class in this file abstracts the GUI.
 """
 
-
 from typing import Union, List, Set
 import PySimpleGUI as psg
 from enum import Enum
@@ -54,7 +53,8 @@ class OutputGUI:
                 continue
             if event == 'Display':
                 return GUIReturn(GUIEvent.DISPLAY, [], None)
-            break
+            if event == 'Ok' and values[0].strip(' ') != '':
+                break
         query = values[0].split(' ')  # Split based on spaces
         query = [q.lower() for q in query]  # Convert to lower case
         return GUIReturn(GUIEvent.QUERY, query, self.layout[1][5].get())

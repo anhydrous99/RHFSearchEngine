@@ -1,4 +1,4 @@
-""" CSCI 6370.01 Information Retrieval & Web Search - Project Part 4
+""" CSCI 6370.01 Information Retrieval & Web Search - Project Part 5
 
 Authors:
     Armando Herrera (ID: 20217690) Team Lead
@@ -256,6 +256,7 @@ class InvertedIndex:
 
         Args:
             query: A list of words to query.
+            calc_rec: Whether to calculate recommendations
 
         Returns:
             Two query results.
